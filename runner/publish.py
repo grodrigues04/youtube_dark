@@ -10,6 +10,7 @@ stop the run and block new attempts until the quota resets (midnight Pacific tim
 are retried in the next runs, up to MAX_ATTEMPTS, then UPLOAD_FAILED.
 """
 
+import fcntl
 import json
 import os
 import re
@@ -28,6 +29,7 @@ from pymongo import MongoClient
 WORK_ROOT = Path(os.environ.get("WORK_ROOT", "/data/work"))
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/data/state"))
 QUOTA_BLOCK_FILE = STATE_DIR / "youtube-quota-blocked-until"
+LOCK_FILE = STATE_DIR / "publish.lock"
 VIDEOS_DATABASE = os.environ.get("VIDEOS_DATABASE", "youtube_dark")
 PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
 CATEGORY_ID = os.environ.get("YOUTUBE_CATEGORY_ID", "27")  # Education
@@ -72,7 +74,8 @@ def block_until_quota_reset() -> None:
 
 
 def is_quota_error(error: HttpError) -> bool:
-    return error.resp.status == 403 and any(
+    # uploadLimitExceeded (videos per day of the channel) comes as 400, the API quota as 403
+    return error.resp.status in (400, 403) and any(
         reason in str(error.content) for reason in ("quotaExceeded", "uploadLimitExceeded", "dailyLimitExceeded")
     )
 
@@ -155,6 +158,10 @@ def main() -> None:
             fields["title"] = json.loads(metadata_file.read_text(encoding="utf-8")).get("title")
         record(folder, fields)
         return
+    # The scheduler and run_daily.sh both call this script: one run at a time, or a video is uploaded twice
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    lock = LOCK_FILE.open("w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
     folders = [Path(argument).resolve() for argument in sys.argv[1:]] or pending_videos()
     folders = [folder for folder in folders if (folder / "READY").is_file() and not (folder / "UPLOADED").is_file()]
     if not folders or quota_blocked():
