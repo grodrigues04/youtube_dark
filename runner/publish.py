@@ -12,6 +12,7 @@ are retried in the next runs, up to MAX_ATTEMPTS, then UPLOAD_FAILED.
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -135,9 +136,11 @@ def upload(youtube, video_dir: Path) -> str:
 
 
 def pending_videos() -> list[Path]:
+    # Only real days: test runs (teste-*) are never uploaded automatically
     return sorted(
         folder for folder in WORK_ROOT.glob("*/videos/*")
-        if (folder / "READY").is_file() and not (folder / "UPLOADED").is_file() and not (folder / "UPLOAD_FAILED").is_file()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", folder.parent.parent.name)
+        and (folder / "READY").is_file() and not (folder / "UPLOADED").is_file() and not (folder / "UPLOAD_FAILED").is_file()
     )
 
 
