@@ -2,7 +2,7 @@
 
 Usage:
     research.py wait <date>              waits until the research of <date> finishes; exit 0 when
-                                         completed, 3 when failed, 4 when the deadline passed
+                                         completed, 3 when failed, 4 after RESEARCH_MAX_WAIT_HOURS
     research.py export <date> <folder>   writes report.md, highlights.json and previous-videos.json
 """
 
@@ -18,7 +18,8 @@ from pymongo import MongoClient
 RESEARCH_DATABASE = os.environ.get("RESEARCH_DATABASE", "market_trends")
 VIDEOS_DATABASE = os.environ.get("VIDEOS_DATABASE", "youtube_dark")
 POLL_SECONDS = int(os.environ.get("RESEARCH_POLL_SECONDS", "120"))
-WAIT_UNTIL_HOUR = int(os.environ.get("RESEARCH_WAIT_UNTIL_HOUR", "23"))
+# The research takes hours and may cross midnight: the limit is a duration, not a time of day
+MAX_WAIT_HOURS = float(os.environ.get("RESEARCH_MAX_WAIT_HOURS") or "18")
 
 
 def get_client() -> MongoClient:
@@ -32,6 +33,7 @@ def log(message: str) -> None:
 def wait(run_date: str) -> int:
     researches = get_client()[RESEARCH_DATABASE]["researches"]
     last_status = None
+    deadline = time.monotonic() + MAX_WAIT_HOURS * 3600
     while True:
         try:
             research = researches.find_one({"date": run_date}, {"status": 1, "error": 1})
@@ -47,8 +49,8 @@ def wait(run_date: str) -> int:
         if status == "failed":
             log(f"research failed: {research.get('error')}")
             return 3
-        if datetime.now().hour >= WAIT_UNTIL_HOUR:
-            log(f"research of {run_date} did not finish until {WAIT_UNTIL_HOUR}:00, giving up")
+        if time.monotonic() >= deadline:
+            log(f"research of {run_date} did not finish in {MAX_WAIT_HOURS:g} hours, giving up")
             return 4
         time.sleep(POLL_SECONDS)
 

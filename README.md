@@ -24,7 +24,7 @@ publish.py (root) ──▶ YouTube (pt-BR) + youtube_dark.videos no MongoDB
   `data/state/<data>.lock`), roda `runner/run_daily.sh`. Se o computador estava desligado às 5h,
   começa assim que o container voltar (até 22h59). A cada 10 minutos ele também tenta de novo os
   uploads pendentes.
-- `run_daily.sh` espera a pesquisa do dia ficar `completed` no MongoDB (desiste às 23h ou se ela
+- `run_daily.sh` espera a pesquisa do dia ficar `completed` no MongoDB (desiste depois de 18 horas ou se ela
   falhar), exporta o relatório, roda a sessão de **pauta** e depois **uma sessão do Claude por
   vídeo** (`run.sh video <data> <n>`), subindo cada vídeo assim que fica pronto.
 - Cada vídeo fica em `data/work/<data>/videos/<NN>/`: `tema.json`, `pesquisa-youtube.md`,
