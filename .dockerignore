@@ -1,0 +1,5 @@
+data
+music
+.env
+**/node_modules
+.git

@@ -1,0 +1,7 @@
+.env
+data/
+music/*
+!music/.gitkeep
+__pycache__/
+node_modules/
+client_secret*.json
