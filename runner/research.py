@@ -1,25 +1,24 @@
-"""Reads the daily research of market_trends from MongoDB. Runs as root only (MONGO_URI).
+"""Reads the market_trends research from MongoDB. Runs as root only (MONGO_URI).
 
 Usage:
-    research.py wait <date>              waits until the research of <date> finishes; exit 0 when
-                                         completed, 3 when failed, 4 after RESEARCH_MAX_WAIT_HOURS
-    research.py export <date> <folder>   writes report.md, highlights.json and previous-videos.json
+    research.py export-latest <folder>   exports the latest completed edition A (the complete one,
+                                         Thursday) to <folder>: report.md, highlights.json and
+                                         previous-videos.json (every video ever made, so a theme
+                                         is never repeated). Prints the date of the research;
+                                         exit 3 when there is no edition A yet.
 """
 
 import json
 import os
 import sys
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 from pymongo import MongoClient
 
 RESEARCH_DATABASE = os.environ.get("RESEARCH_DATABASE", "market_trends")
 VIDEOS_DATABASE = os.environ.get("VIDEOS_DATABASE", "youtube_dark")
-POLL_SECONDS = int(os.environ.get("RESEARCH_POLL_SECONDS", "120"))
-# The research takes hours and may cross midnight: the limit is a duration, not a time of day
-MAX_WAIT_HOURS = float(os.environ.get("RESEARCH_MAX_WAIT_HOURS") or "18")
+REAL_DATE = r"^\d{4}-\d{2}-\d{2}$"
 
 
 def get_client() -> MongoClient:
@@ -27,47 +26,26 @@ def get_client() -> MongoClient:
 
 
 def log(message: str) -> None:
-    print(f"[research {datetime.now():%F %T}] {message}", flush=True)
+    print(f"[research {datetime.now():%F %T}] {message}", file=sys.stderr, flush=True)
 
 
-def wait(run_date: str) -> int:
-    researches = get_client()[RESEARCH_DATABASE]["researches"]
-    last_status = None
-    deadline = time.monotonic() + MAX_WAIT_HOURS * 3600
-    while True:
-        try:
-            research = researches.find_one({"date": run_date}, {"status": 1, "error": 1})
-        except Exception as error:  # network blips must not end a wait of hours
-            log(f"MongoDB error, retrying: {error}")
-            research = None
-        status = (research or {}).get("status", "not started")
-        if status != last_status:
-            log(f"research of {run_date}: {status}")
-            last_status = status
-        if status == "completed":
-            return 0
-        if status == "failed":
-            log(f"research failed: {research.get('error')}")
-            return 3
-        if time.monotonic() >= deadline:
-            log(f"research of {run_date} did not finish in {MAX_WAIT_HOURS:g} hours, giving up")
-            return 4
-        time.sleep(POLL_SECONDS)
-
-
-def export(run_date: str, folder: Path) -> int:
+def export_latest(folder: Path) -> int:
     client = get_client()
-    research = client[RESEARCH_DATABASE]["researches"].find_one({"date": run_date, "status": "completed"})
+    research = client[RESEARCH_DATABASE]["researches"].find_one(
+        {"date": {"$regex": REAL_DATE}, "status": "completed", "edition": "A"},
+        sort=[("date", -1)],
+    )
     if research is None:
-        log(f"no completed research for {run_date}")
+        log("no completed edition A research yet")
         return 3
+    research_date = research["date"]
     folder.mkdir(parents=True, exist_ok=True)
     report = [f"# {research.get('title', '')}\n\n{research.get('summary', '')}\n"]
     for part in research.get("parts", []):
         report.append(f"# {part['title']}\n\n{part['markdown']}\n")
     (folder / "report.md").write_text("\n".join(report), encoding="utf-8")
     highlights = {
-        "date": run_date,
+        "date": research_date,
         "title": research.get("title"),
         "summary": research.get("summary"),
         "recommendations": research.get("recommendations", []),
@@ -75,23 +53,25 @@ def export(run_date: str, folder: Path) -> int:
     }
     (folder / "highlights.json").write_text(json.dumps(highlights, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    since = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
     previous = list(
         client[VIDEOS_DATABASE]["videos"].find(
-            {"date": {"$gte": since, "$lt": run_date}},
-            {"_id": 0, "date": 1, "theme": 1, "item_name": 1, "title": 1},
+            {"date": {"$regex": REAL_DATE}, "theme": {"$ne": None}},
+            {"_id": 0, "date": 1, "research_date": 1, "category_key": 1, "item_name": 1, "theme": 1,
+             "title": 1, "status": 1},
         ).sort("date", -1)
     )
+    for video in previous:
+        # The first videos were made from the research of their own day
+        video.setdefault("research_date", video["date"])
     (folder / "previous-videos.json").write_text(json.dumps(previous, ensure_ascii=False, indent=2), encoding="utf-8")
-    log(f"exported research of {run_date} to {folder} ({len(research.get('parts', []))} parts, {len(previous)} previous videos)")
+    log(f"exported research {research_date} (edition A) to {folder} ({len(research.get('parts', []))} parts, {len(previous)} previous videos)")
+    print(research_date)
     return 0
 
 
 def main() -> None:
-    if len(sys.argv) == 3 and sys.argv[1] == "wait":
-        sys.exit(wait(sys.argv[2]))
-    if len(sys.argv) == 4 and sys.argv[1] == "export":
-        sys.exit(export(sys.argv[2], Path(sys.argv[3])))
+    if len(sys.argv) == 3 and sys.argv[1] == "export-latest":
+        sys.exit(export_latest(Path(sys.argv[2])))
     sys.exit(__doc__)
 
 

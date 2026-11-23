@@ -5,15 +5,18 @@ Usage:
     publish.py [<video_dir> ...]            without arguments, every /data/work/*/videos/* with READY
     publish.py --record <video_dir> <status> [<error>]   only records the video in MongoDB
 
-A video folder is uploaded once: READY (written by Claude) → UPLOADED (video id). Quota errors
+A video folder is uploaded once: READY (written by Claude) → UPLOADED (video id). The video goes
+up private, with YouTube scheduled to publish it at PUBLISH_HOUR (08:00, Brasília). Quota errors
 stop the run and block new attempts until the quota resets (midnight Pacific time); other errors
-are retried in the next runs, up to MAX_ATTEMPTS, then UPLOAD_FAILED.
+are retried in the next runs, up to MAX_ATTEMPTS, then UPLOAD_FAILED. The media of the uploaded
+videos (video, thumbnail, narration, frames) is deleted from the disk; the texts stay.
 """
 
 import fcntl
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -31,7 +34,10 @@ STATE_DIR = Path(os.environ.get("STATE_DIR", "/data/state"))
 QUOTA_BLOCK_FILE = STATE_DIR / "youtube-quota-blocked-until"
 LOCK_FILE = STATE_DIR / "publish.lock"
 VIDEOS_DATABASE = os.environ.get("VIDEOS_DATABASE", "youtube_dark")
-PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
+PUBLISH_HOUR = int(os.environ.get("YOUTUBE_PUBLISH_HOUR") or "8")
+LOCAL_TIMEZONE = ZoneInfo("America/Sao_Paulo")
+MEDIA_SUFFIXES = {".mp4", ".webm", ".mov", ".jpg", ".jpeg", ".png", ".webp", ".mp3", ".wav", ".m4a", ".aac"}
+MEDIA_FOLDERS = ("assets", "qa")
 CATEGORY_ID = os.environ.get("YOUTUBE_CATEGORY_ID", "27")  # Education
 MAX_ATTEMPTS = 5
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube"]
@@ -80,6 +86,36 @@ def is_quota_error(error: HttpError) -> bool:
     )
 
 
+def next_publish_time() -> datetime:
+    # The next PUBLISH_HOUR at least 15 minutes ahead (YouTube needs publishAt in the future)
+    now = datetime.now(LOCAL_TIMEZONE)
+    publish_at = now.replace(hour=PUBLISH_HOUR, minute=0, second=0, microsecond=0)
+    if publish_at < now + timedelta(minutes=15):
+        publish_at += timedelta(days=1)
+    return publish_at
+
+
+def delete_media(video_dir: Path) -> None:
+    removed = 0
+    for name in MEDIA_FOLDERS:
+        if (video_dir / name).is_dir():
+            shutil.rmtree(video_dir / name)
+            removed += 1
+    for file in video_dir.iterdir():
+        if file.is_file() and file.suffix.lower() in MEDIA_SUFFIXES:
+            file.unlink()
+            removed += 1
+    if removed:
+        log(f"{video_dir}: media deleted from the disk")
+
+
+def research_date_of(video_dir: Path) -> str | None:
+    highlights = video_dir.parent.parent / "research" / "highlights.json"
+    if not highlights.is_file():
+        return None
+    return json.loads(highlights.read_text(encoding="utf-8")).get("date")
+
+
 def record(video_dir: Path, fields: dict) -> None:
     run_date, index = video_dir.parent.parent.name, int(video_dir.name)
     tema = json.loads((video_dir / "tema.json").read_text(encoding="utf-8")) if (video_dir / "tema.json").is_file() else {}
@@ -94,6 +130,7 @@ def record(video_dir: Path, fields: dict) -> None:
                 "theme": tema.get("theme"),
                 "item_name": tema.get("item_name"),
                 "category_key": tema.get("category_key"),
+                "research_date": research_date_of(video_dir),
                 "updated_at": now,
                 **fields,
             },
@@ -104,7 +141,7 @@ def record(video_dir: Path, fields: dict) -> None:
     client.close()
 
 
-def upload(youtube, video_dir: Path) -> str:
+def upload(youtube, video_dir: Path, publish_at: datetime) -> str:
     metadata = json.loads((video_dir / "metadata.json").read_text(encoding="utf-8"))
     body = {
         "snippet": {
@@ -116,7 +153,9 @@ def upload(youtube, video_dir: Path) -> str:
             "defaultAudioLanguage": "pt-BR",
         },
         "status": {
-            "privacyStatus": PRIVACY_STATUS,
+            # Private until YouTube publishes it at publishAt
+            "privacyStatus": "private",
+            "publishAt": publish_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "selfDeclaredMadeForKids": False,
             "embeddable": True,
         },
@@ -164,6 +203,9 @@ def main() -> None:
     fcntl.flock(lock, fcntl.LOCK_EX)
     folders = [Path(argument).resolve() for argument in sys.argv[1:]] or pending_videos()
     folders = [folder for folder in folders if (folder / "READY").is_file() and not (folder / "UPLOADED").is_file()]
+    # The videos already on YouTube must not stay on the disk
+    for uploaded in sorted(WORK_ROOT.glob("*/videos/*/UPLOADED")):
+        delete_media(uploaded.parent)
     if not folders or quota_blocked():
         return
     if not all(os.environ.get(key) for key in ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")):
@@ -173,8 +215,9 @@ def main() -> None:
     for folder in folders:
         attempts_file = folder / "upload-attempts"
         attempts = int(attempts_file.read_text()) if attempts_file.is_file() else 0
+        publish_at = next_publish_time()
         try:
-            video_id = upload(youtube, folder)
+            video_id = upload(youtube, folder, publish_at)
         except HttpError as error:
             if is_quota_error(error):
                 block_until_quota_reset()
@@ -196,10 +239,12 @@ def main() -> None:
             "title": metadata.get("title"),
             "description": metadata.get("description"),
             "hashtags": metadata.get("hashtags", []),
-            "privacy_status": PRIVACY_STATUS,
+            "privacy_status": "scheduled",
+            "publish_at": publish_at.astimezone(timezone.utc),
             "uploaded_at": datetime.now(timezone.utc),
         })
-        log(f"{folder}: uploaded {url}")
+        log(f"{folder}: uploaded {url}, published by YouTube at {publish_at:%F %H:%M}")
+        delete_media(folder)
 
 
 if __name__ == "__main__":

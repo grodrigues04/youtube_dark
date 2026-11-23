@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs one Claude session as `node`:
-#   run.sh pauta <date>          chooses the 7 themes → /data/work/<date>/pauta.json
+#   run.sh pauta <date>          chooses the theme of the day → /data/work/<date>/pauta.json
 #   run.sh video <date> <index>  produces one Short → /data/work/<date>/videos/<NN>/ (READY)
 # Claude runs with --dangerously-skip-permissions: it is a non-root user in a container whose
 # environment holds only the Claude token (see run-as-claude-user.sh).

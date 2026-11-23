@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Checks the wall clock every 30 seconds. From 05:00 on, once a day, starts run_daily.sh, which
-# waits for the market_trends research of the day to finish and then produces the Shorts. If the
-# computer was off at 05:00, the day starts as soon as the container is running again (until
-# 22:59); a day never runs twice (lock in /data/state/). Every 10 minutes publish.py retries the
-# uploads that are still pending (quota, network, missing credentials).
+# Checks the wall clock every 30 seconds. Every day at 06:00 starts run_daily.sh, which makes one
+# Short from the latest complete research (edition A of market_trends) and uploads it scheduled
+# for 08:00. It never waits for a research: it uses the one already saved. If the computer was
+# off at 06:00, the day starts as soon as the container is running again, until 06:59 (later than
+# that the video would not be ready by 08:00); a day never runs twice (lock in /data/state/).
+# Every 10 minutes publish.py retries the uploads that are still pending (quota, network) and
+# deletes the media of the videos already uploaded.
 #
 # Runs as root: run.sh drops to the `node` user before Claude starts.
 set -uo pipefail
 
-FIRST_HOUR="${FIRST_HOUR:-5}"
-LAST_HOUR="${LAST_HOUR:-22}"
+START_HOUR=6
 last_publish=0
 
-echo "[scheduler] started at $(date '+%F %T %Z'), Shorts are produced every day after the 05:00 research"
+echo "[scheduler] started at $(date '+%F %T %Z'), one Short every day at 06:00, published at 08:00"
 
 while true; do
   today=$(date +%F)
   hour=$((10#$(date +%H)))
 
-  if [ "$hour" -ge "$FIRST_HOUR" ] && [ "$hour" -le "$LAST_HOUR" ] \
-     && [ ! -e "/data/state/$today.lock" ]; then
+  if [ "$hour" -eq "$START_HOUR" ] && [ ! -e "/data/state/$today.lock" ]; then
     /app/run_daily.sh "$today"
   fi
 

@@ -1,8 +1,8 @@
 name: youtube-dark
 
 services:
-  # Every day, after the 05:00 research of market_trends finishes, produces one YouTube Short per
-  # list of part 11 and uploads them. Claude runs as `node` with only its own token (see
+  # Every day at 06:00 produces one YouTube Short from the latest complete research (edition A) of
+  # market_trends and uploads it scheduled for 08:00. Claude runs as `node` with only its own token (see
   # runner/run-as-claude-user.sh); MONGO_URI and the YouTube credentials are visible only to the
   # root processes (research.py, publish.py).
   youtube-dark:
@@ -16,8 +16,7 @@ services:
       YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
       YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
       YOUTUBE_REFRESH_TOKEN: ${YOUTUBE_REFRESH_TOKEN:-}
-      YOUTUBE_PRIVACY_STATUS: ${YOUTUBE_PRIVACY_STATUS:-public}
-      VIDEO_COUNT: ${VIDEO_COUNT:-7}
+      YOUTUBE_PUBLISH_HOUR: ${YOUTUBE_PUBLISH_HOUR:-8}
       RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-4}
       TZ: America/Sao_Paulo
     volumes:
