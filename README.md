@@ -59,7 +59,9 @@ publish.py (root) ──▶ YouTube (privado, publicação agendada para 8h) + y
   legendas sincronizadas palavra por palavra, barra de progresso, flash e confete nas viradas.
   Catálogo em `studio/prompts/catalogo-de-cenas.md`.
 - `tools/prepare.py`: narração pt-BR com `edge-tts` (vozes Antonio, Francisca e Thalita), tempos
-  de cada palavra para as legendas e duração das cenas; recusa vídeo acima de 58s.
+  de cada palavra para as legendas e duração das cenas; corta as pausas da voz (no máximo 0,03s
+  entre palavras nos primeiros 8s e 0,08s depois, inclusive entre as cenas); recusa vídeo acima
+  de 58s.
 - `tools/render.sh`, `tools/frames.sh` (frames para o Claude conferir), `tools/thumbnail.sh`,
   `tools/custom-studio.sh` (cena nova só para um vídeo), `tools/youtube_search.py`.
 - Efeitos sonoros sintetizados com ffmpeg no build. Música de fundo é opcional: coloque mp3 com

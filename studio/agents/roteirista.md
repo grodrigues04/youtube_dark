@@ -44,7 +44,10 @@ Regras:
   exemplos e valores do Brasil (R$), ângulo "cresce lá fora → pode chegar ao Brasil", no máximo
   ~140 palavras de narração, cena 1 com até 3 segundos, algo novo na tela a cada 2–3 segundos,
   primeira recompensa até o segundo 8–10, final que puxa o rewatch e CTA curto.
-- Conte as palavras da narração e estime a duração (~2,7 palavras por segundo).
+- Narração corrida, sem pausas (seção "Narração corrida, sem pausas" de `regras-do-short.md`):
+  sem reticências, sem frase de uma palavra só, gancho dito de uma vez e cenas que emendam uma na
+  outra.
+- Conte as palavras da narração e estime a duração (~3,3 palavras por segundo).
 - Cada cena usa um `type` do catálogo e já traz os campos dele, para a produção copiar direto.
 - Numa revisão, responda **cada** ponto da crítica (aceitando ou, se discordar, explicando em uma
   linha no fim do roteiro, na seção "Respostas à crítica"). Não piore o que já estava aprovado.

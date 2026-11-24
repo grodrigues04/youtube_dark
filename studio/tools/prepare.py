@@ -4,9 +4,11 @@ Usage: prepare.py <video_dir>
 
 For every scene: validates the fields, generates the pt-BR narration with edge-tts (one mp3 per
 scene in <video_dir>/assets/) with word timings for the captions, and sets the scene duration to
-the narration length. Copies the sound effects and the chosen music. Fails (exit 2) with a clear
-message when something is wrong, including a total above MAX_SECONDS: shorten the narration and
-run again.
+the narration length. The pauses of edge-tts are cut out: it leaves ~0.15s of silence before and
+~0.75s after every clip, ~0.7s after every period and ~0.25s after every comma, so the narration
+sounded slow and robotic. Copies the sound effects and the chosen music. Fails (exit 2) with a
+clear message when something is wrong, including a total above MAX_SECONDS: shorten the narration
+and run again.
 """
 
 import asyncio
@@ -22,8 +24,12 @@ import edge_tts
 
 FPS = 30
 MAX_SECONDS = float(os.environ.get("MAX_VIDEO_SECONDS") or "58")
-SCENE_PADDING_SECONDS = 0.18
-MIN_SCENE_SECONDS = 1.2
+MIN_SCENE_SECONDS = 0.8
+# Longest silence kept between two words (also between the last word of a scene and the first of
+# the next one): none in the hook (the first HOOK_SECONDS), only a breath after it
+HOOK_SECONDS = 8.0
+HOOK_MAX_GAP_SECONDS = 0.03
+MAX_GAP_SECONDS = 0.08
 SFX_DIR = Path(os.environ.get("SFX_DIR") or "/app/studio/sfx")
 MUSIC_DIR = Path(os.environ.get("MUSIC_DIR") or "/music")
 PALETTES = {"neon", "sunset", "ocean", "candy", "lime", "fire"}
@@ -102,6 +108,48 @@ async def narrate(text: str, voice: str, rate: str, output: Path) -> list[dict]:
     return words
 
 
+def max_gap(video_seconds: float) -> float:
+    return HOOK_MAX_GAP_SECONDS if video_seconds < HOOK_SECONDS else MAX_GAP_SECONDS
+
+
+def tighten(raw: Path, output: Path, words: list[dict], scene_start: float) -> list[dict]:
+    """Writes `output` with the pauses of `raw` cut out and returns the word timings shifted to it.
+
+    Keeps half of the allowed gap after each word and half before the next one, so a scene ends
+    and the next one starts with the same short gap as two words inside a scene.
+    """
+    segments = []
+    shifted = []
+    removed = max(words[0]["start"] - max_gap(scene_start) / 2, 0)
+    segment_start = removed
+    for index, word in enumerate(words):
+        if index > 0:
+            previous = words[index - 1]
+            gap_limit = max_gap(scene_start + previous["end"] - removed)
+            gap = word["start"] - previous["end"]
+            if gap > gap_limit:
+                segments.append((segment_start, previous["end"] + gap_limit / 2))
+                segment_start = word["start"] - gap_limit / 2
+                removed += gap - gap_limit
+        shifted.append({**word, "start": word["start"] - removed, "end": word["end"] - removed})
+    last_end = words[-1]["end"]
+    segments.append((segment_start, last_end + max_gap(scene_start + last_end - removed) / 2))
+
+    filters = [
+        f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]"
+        for index, (start, end) in enumerate(segments)
+    ]
+    inputs = "".join(f"[a{index}]" for index in range(len(segments)))
+    filters.append(f"{inputs}concat=n={len(segments)}:v=0:a=1[out]")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-i", str(raw), "-filter_complex", ";".join(filters),
+         "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "128k", str(output)],
+        check=True,
+    )
+    raw.unlink()
+    return shifted
+
+
 async def prepare(video_dir: Path) -> None:
     spec = json.loads((video_dir / "video.json").read_text(encoding="utf-8"))
     validate(spec)
@@ -123,11 +171,17 @@ async def prepare(video_dir: Path) -> None:
     rate = spec.get("rate", "+10%")
     scenes = []
     report = []
+    video_seconds = 0.0
     for index, scene in enumerate(spec["scenes"], start=1):
         audio_name = f"narration-{index:02d}.mp3"
-        words = await narrate(scene["narration"], voice, rate, assets / audio_name)
-        seconds = max(audio_seconds(assets / audio_name) + SCENE_PADDING_SECONDS, MIN_SCENE_SECONDS)
+        raw = assets / f"raw-{audio_name}"
+        words = await narrate(scene["narration"], voice, rate, raw)
+        if not words:
+            raise SpecError(f"cena {index}: o edge-tts não devolveu as palavras da narração, rode de novo")
+        words = tighten(raw, assets / audio_name, words, video_seconds)
+        seconds = max(audio_seconds(assets / audio_name), MIN_SCENE_SECONDS)
         duration = round(seconds * FPS)
+        video_seconds += duration / FPS
         scene = {
             **scene,
             "audio": audio_name,

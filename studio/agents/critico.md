@@ -25,6 +25,10 @@ Escreva `critica-vN.md` (mesmo N do roteiro analisado) com:
      animações coloridas bem distribuídos; tipos de cena variados (não repetir o mesmo tipo em
      sequência).
    - Até 1 minuto (narração ≤ ~140 palavras, alvo 35–50s; conte as palavras).
+   - **Narração corrida, sem pausas**: nenhuma reticência, nenhuma frase de uma palavra só,
+     nenhuma pausa dramática; o gancho (primeiros 8s) é dito de uma vez e a cena 1 emenda na
+     cena 2; as cenas continuam a ideia da anterior (aponte cada trecho que cria pausa e
+     reescreva).
    - **pt-BR natural**, de criador brasileiro, **sem cara de tradução** (aponte cada frase que
      soa traduzida e reescreva).
    - Público brasileiro: exemplos, R$ e referências do Brasil; ângulo "cresce lá fora → pode

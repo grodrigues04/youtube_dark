@@ -21,11 +21,27 @@
 ## Formato
 
 - Vertical 1080x1920, **no máximo 1 minuto** (a narração inteira cabe em até 55 segundos;
-  alvo entre 35 e 50s). A voz lê ~2,7 palavras por segundo: **no máximo ~140 palavras** de
-  narração no total.
+  alvo entre 35 e 50s). A voz lê ~3,3 palavras por segundo (sem as pausas, veja abaixo): **no
+  máximo ~140 palavras** de narração no total.
 - 7 a 12 cenas de 2 a 6 segundos. **Alguma coisa muda na tela a cada 2–3 segundos** (cena nova,
   item entrando, número contando, emoji, flash): nenhum momento parado.
 - Cenas usam só os tipos do `catalogo-de-cenas.md` (a produção monta o vídeo a partir deles).
+
+## Narração corrida, sem pausas
+
+- A narração flui do começo ao fim, como uma pessoa falando sem parar para respirar: **não há
+  pausa entre as frases nem entre as cenas**. O estúdio corta os silêncios da voz
+  automaticamente; escreva o texto para soar bem assim.
+- Encadeie as frases com vírgula e conectivos ("e", "mas", "só que", "porque", "então"), como
+  na fala. Uma cena termina e a seguinte continua a mesma ideia, sem recomeçar do zero.
+- **Proibido**: reticências ("..."), frases de uma palavra só ("Vendida."), pausa dramática,
+  silêncio para criar suspense. O suspense vem do texto e do visual, nunca de silêncio. Os
+  exemplos de `gatilhos-mentais.md` com reticências são escritos: na narração, troque as
+  reticências por vírgula ou emende na frase seguinte.
+- **Nos primeiros 8 segundos, nenhuma pausa**: o gancho é dito de uma vez, numa frase só ou em
+  frases emendadas, e a cena 1 já emenda na cena 2. Ex.: em vez de "Um app que leiloa cartinha
+  ao vivo vale... Vinte bilhões de dólares.", escreva "Um app que leiloa cartinha ao vivo vale
+  vinte bilhões de dólares, e no Brasil ninguém fez ainda".
 
 ## Os primeiros segundos (obrigatório)
 

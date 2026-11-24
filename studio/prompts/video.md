@@ -33,8 +33,12 @@ A produção **só começa depois** do `roteiro-final.md` pronto.
    narração (palavra por palavra), mesmos tipos, textos, destaques, emojis, SFX e paletas.
    Se houver músicas em `/music` (`ls /music`), pode escolher uma que combine (volume 0.08–0.15);
    senão `"music": null`.
-2. `python3 /app/studio/tools/prepare.py .` — gera a narração pt-BR e `props.json`. Se passar do
-   tempo máximo, enxugue a narração mantendo o sentido do roteiro e rode de novo.
+   A narração é corrida (seção "Narração corrida, sem pausas" de `regras-do-short.md`): se o
+   roteiro final ainda tiver reticências ou frases de uma palavra só, troque por vírgula ou emende
+   na frase seguinte, sem mudar o sentido.
+2. `python3 /app/studio/tools/prepare.py .` — gera a narração pt-BR (já sem as pausas da voz) e
+   `props.json`. Se passar do tempo máximo, enxugue a narração mantendo o sentido do roteiro e
+   rode de novo.
 3. `bash /app/studio/tools/render.sh .` — gera `video.mp4` (leva alguns minutos).
 4. Controle de qualidade: `bash /app/studio/tools/frames.sh . 0.3 1.5 3 6 9` e mais 4 a 6
    segundos espalhados até o fim (um por cena). Abra cada imagem de `qa/` com Read e confira:
