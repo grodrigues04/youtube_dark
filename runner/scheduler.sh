@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks the wall clock every 30 seconds. Every day at 06:00 starts run_daily.sh, which makes one
-# Short from the latest complete research (edition A of market_trends) and uploads it scheduled
+# Short from the latest completed research of market_trends and uploads it scheduled
 # for 08:00. It never waits for a research: it uses the one already saved. If the computer was
 # off at 06:00, the day starts as soon as the container is running again, until 06:59 (later than
 # that the video would not be ready by 08:00); a day never runs twice (lock in /data/state/).

@@ -3,8 +3,8 @@
 Você roda sozinho num container, sem ninguém para responder perguntas: nunca pergunte nada,
 decida e siga. A pasta atual é a pasta de trabalho do dia ({{DATE}}).
 
-Todo dia sai **um** Short, feito a partir da pesquisa de mercado completa mais recente (sai toda
-quinta à noite). Ela está em `research/`:
+Todo dia sai **um** Short, feito a partir da pesquisa de mercado mais recente (sai de segunda a
+quarta, de madrugada). Ela está em `research/`:
 
 - `research/highlights.json`: a data da pesquisa (`date`) e as 7 listas da Parte 11
   (recomendações estratégicas finais), cada uma com 10 itens (`recommendations[].key`, `title`,

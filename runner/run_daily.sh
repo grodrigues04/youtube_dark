@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Short of one day, made from the latest complete research (edition A of market_trends):
+# The Short of one day, made from the latest completed research of market_trends:
 # exports it, chooses one theme never used before (one Claude session), produces the video (another
 # Claude session) and uploads it scheduled for 08:00. Root only (MONGO_URI, YouTube credentials).
 # MANUAL_RUN=1 runs a day that already has a lock again, skipping what is already done.
@@ -27,11 +27,11 @@ if [ -e "$LOCK_FILE" ] && [ "${MANUAL_RUN:-0}" != "1" ]; then
 fi
 date '+%F %T' > "$LOCK_FILE" || { echo "cannot create $LOCK_FILE"; exit 1; }
 
-# 1. The latest complete research (a new one every Thursday night)
+# 1. The latest completed research (a new one Monday to Wednesday, at night)
 mkdir -p "$WORK_DIR" && chown node:node "$WORK_DIR"
 research_date=$($PYTHON /app/research.py export-latest "$WORK_DIR/research" 2>> "$LOG_FILE")
 if [ -z "$research_date" ]; then
-  log "No complete research (edition A) to use, no Short for $RUN_DATE"
+  log "No completed research to use, no Short for $RUN_DATE"
   exit 0
 fi
 chown -R node:node "$WORK_DIR/research"

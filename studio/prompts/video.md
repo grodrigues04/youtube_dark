@@ -2,7 +2,7 @@
 
 Você roda sozinho num container, sem ninguém para responder perguntas: nunca pergunte nada,
 decida e siga. A pasta atual é a pasta deste vídeo. Nela está `tema.json` (o tema escolhido da
-pesquisa de mercado completa mais recente); o relatório completo está em `../../research/report.md`.
+pesquisa de mercado mais recente); o relatório completo está em `../../research/report.md`.
 
 O vídeo é um YouTube Short de **no máximo 1 minuto**, **100% em pt-BR para o público
 brasileiro**. As regras estão em `/app/studio/prompts/regras-do-short.md` (leia inteiro agora) e

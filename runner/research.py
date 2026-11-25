@@ -1,11 +1,11 @@
 """Reads the market_trends research from MongoDB. Runs as root only (MONGO_URI).
 
 Usage:
-    research.py export-latest <folder>   exports the latest completed edition A (the complete one,
-                                         Thursday) to <folder>: report.md, highlights.json and
+    research.py export-latest <folder>   exports the latest completed research (Monday to
+                                         Wednesday) to <folder>: report.md, highlights.json and
                                          previous-videos.json (every video ever made, so a theme
                                          is never repeated). Prints the date of the research;
-                                         exit 3 when there is no edition A yet.
+                                         exit 3 when there is no completed research yet.
 """
 
 import json
@@ -32,11 +32,11 @@ def log(message: str) -> None:
 def export_latest(folder: Path) -> int:
     client = get_client()
     research = client[RESEARCH_DATABASE]["researches"].find_one(
-        {"date": {"$regex": REAL_DATE}, "status": "completed", "edition": "A"},
+        {"date": {"$regex": REAL_DATE}, "status": "completed"},
         sort=[("date", -1)],
     )
     if research is None:
-        log("no completed edition A research yet")
+        log("no completed research yet")
         return 3
     research_date = research["date"]
     folder.mkdir(parents=True, exist_ok=True)
@@ -64,7 +64,7 @@ def export_latest(folder: Path) -> int:
         # The first videos were made from the research of their own day
         video.setdefault("research_date", video["date"])
     (folder / "previous-videos.json").write_text(json.dumps(previous, ensure_ascii=False, indent=2), encoding="utf-8")
-    log(f"exported research {research_date} (edition A) to {folder} ({len(research.get('parts', []))} parts, {len(previous)} previous videos)")
+    log(f"exported research {research_date} to {folder} ({len(research.get('parts', []))} parts, {len(previous)} previous videos)")
     print(research_date)
     return 0
 

@@ -1,13 +1,13 @@
 # youtube_dark
 
 Todo dia às **6h**, este container faz **um** YouTube Short de até 1 minuto (100% em pt-BR, para o
-público brasileiro) a partir da pesquisa completa mais recente do
-[market_trends](../market_trends) (a edição A, de quinta à noite) e sobe no canal agendado para
-ser publicado às **8h**. Ele nunca espera nem roda logo depois de uma pesquisa: usa a que já está
-salva, e na sexta já pega a edição nova da quinta.
+público brasileiro) a partir da pesquisa concluída mais recente do
+[market_trends](../market_trends) (sai de segunda a quarta, à 1h) e sobe no canal agendado para
+ser publicado às **8h**. Ele nunca espera uma pesquisa: usa a que já está salva (de segunda a
+quarta, a da madrugada do mesmo dia; se ela falhou ou ainda não acabou, a anterior).
 
 ```
-market_trends.researches (edição A mais recente) ──▶ research.py (root): exporta para /data/work/<data>/research
+market_trends.researches (pesquisa mais recente) ──▶ research.py (root): exporta para /data/work/<data>/research
         │                                              (+ todos os vídeos já feitos, para não repetir tema)
         ▼
 Claude "pauta" ──▶ pauta.json (1 tema nunca usado; uma lista da Parte 11 por dia)
@@ -27,9 +27,9 @@ publish.py (root) ──▶ YouTube (privado, publicação agendada para 8h) + y
   `data/state/<data>.lock`), roda `runner/run_daily.sh`. Se o computador estava desligado às 6h,
   começa assim que o container voltar, mas só até 06:59 (depois disso o vídeo não ficaria pronto
   para as 8h, e o dia é pulado). A cada 10 minutos ele também tenta de novo os uploads pendentes.
-- `run_daily.sh` exporta a edição A mais recente (`research.py export-latest`), roda a sessão de
-  **pauta** (um tema que nunca virou vídeo, de uma lista da Parte 11 ainda não usada para essa
-  pesquisa; com 7 listas e 7 dias até a próxima quinta, sai um vídeo de cada lista por semana) e
+- `run_daily.sh` exporta a pesquisa concluída mais recente (`research.py export-latest`), roda a
+  sessão de **pauta** (um tema que nunca virou vídeo, da primeira lista da Parte 11 ainda não
+  usada para essa pesquisa; quando as 7 já foram usadas, volta ao começo) e
   depois a sessão do **vídeo** (`run.sh video <data> 1`).
 - `publish.py` sobe o vídeo **privado, com publicação agendada** (`publishAt`) para as 8h
   (`YOUTUBE_PUBLISH_HOUR`). Assim ele aparece no canal às 8h mesmo com o computador desligado.
