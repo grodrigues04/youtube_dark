@@ -19,6 +19,26 @@ from pymongo import MongoClient
 RESEARCH_DATABASE = os.environ.get("RESEARCH_DATABASE", "market_trends")
 VIDEOS_DATABASE = os.environ.get("VIDEOS_DATABASE", "youtube_dark")
 REAL_DATE = r"^\d{4}-\d{2}-\d{2}$"
+# The tables of the research, in the order of report.md: (key, heading, columns)
+CONCLUSION_TABLES = [
+    ("comparison", "Comparação entre países", ["trend", "countries", "pattern", "leader", "note"]),
+    ("top_opportunities", "Top oportunidades globais",
+     ["rank", "opportunity", "country", "niche", "subniche", "evidence", "evidence_url", "growth_stage",
+      "competition", "monetization", "brazil_potential", "score"]),
+    ("content_opportunities", "Top oportunidades de conteúdo",
+     ["rank", "theme", "audience", "positioning", "platforms", "ideas", "hooks", "monetization", "example"]),
+    ("business_opportunities", "Top oportunidades de negócio",
+     ["rank", "concept", "problem", "audience", "mvp", "monetization", "competitors", "complexity",
+      "brazil_potential"]),
+]
+COUNTRY_TABLES = [
+    ("trends", "Tendências",
+     ["niche", "subniche", "trend", "stage", "longevity", "platforms", "evidence", "source_url", "source_date"]),
+    ("content_formats", "Formatos de conteúdo", ["format", "platforms", "example", "source_url"]),
+    ("opportunities", "Oportunidades de negócio",
+     ["opportunity", "type", "niche", "audience", "problem", "monetization", "competition", "brazil_potential",
+      "source_url"]),
+]
 
 
 def get_client() -> MongoClient:
@@ -27,6 +47,36 @@ def get_client() -> MongoClient:
 
 def log(message: str) -> None:
     print(f"[research {datetime.now():%F %T}] {message}", file=sys.stderr, flush=True)
+
+
+def markdown_table(rows: list[dict], columns: list[str]) -> str:
+    def cell(value) -> str:
+        if isinstance(value, list):
+            value = "; ".join(str(item) for item in value)
+        return "" if value is None else str(value).replace("|", "/").replace("\n", " ")
+
+    lines = ["| " + " | ".join(columns) + " |", "|" + "---|" * len(columns)]
+    lines += ["| " + " | ".join(cell(row.get(column)) for column in columns) + " |" for row in rows]
+    return "\n".join(lines)
+
+
+def build_report(research: dict) -> str:
+    """The research as Markdown, for the agents to Grep facts. The researches saved since the blog
+    shows only tables have no text (parts): their tables are written instead."""
+    report = [f"# {research.get('title', '')}\n\n{research.get('summary') or ''}\n"]
+    for part in research.get("parts", []):
+        report.append(f"# {part['title']}\n\n{part['markdown']}\n")
+    for country in research.get("countries", []):
+        if country.get("skipped"):
+            report.append(f"# {country['country']}\n\n{country['country']} {country['skipped']}\n")
+            continue
+        report.append(f"# {country['country']}\n")
+        for key, heading, columns in COUNTRY_TABLES:
+            report.append(f"## {heading}\n\n{markdown_table(country.get(key) or [], columns)}\n")
+    for key, heading, columns in CONCLUSION_TABLES:
+        if research.get(key) and not research.get("parts"):
+            report.append(f"# {heading}\n\n{markdown_table(research[key], columns)}\n")
+    return "\n".join(report)
 
 
 def export_latest(folder: Path) -> int:
@@ -40,10 +90,7 @@ def export_latest(folder: Path) -> int:
         return 3
     research_date = research["date"]
     folder.mkdir(parents=True, exist_ok=True)
-    report = [f"# {research.get('title', '')}\n\n{research.get('summary', '')}\n"]
-    for part in research.get("parts", []):
-        report.append(f"# {part['title']}\n\n{part['markdown']}\n")
-    (folder / "report.md").write_text("\n".join(report), encoding="utf-8")
+    (folder / "report.md").write_text(build_report(research), encoding="utf-8")
     highlights = {
         "date": research_date,
         "title": research.get("title"),
@@ -64,7 +111,8 @@ def export_latest(folder: Path) -> int:
         # The first videos were made from the research of their own day
         video.setdefault("research_date", video["date"])
     (folder / "previous-videos.json").write_text(json.dumps(previous, ensure_ascii=False, indent=2), encoding="utf-8")
-    log(f"exported research {research_date} to {folder} ({len(research.get('parts', []))} parts, {len(previous)} previous videos)")
+    sections = len(research.get("parts", [])) or len(research.get("countries", []))
+    log(f"exported research {research_date} to {folder} ({sections} parts or countries, {len(previous)} previous videos)")
     print(research_date)
     return 0
 
